@@ -2,6 +2,7 @@
 
 module Network.JsonRpc.Internal where
 
+import qualified Data.Aeson as A
 import Data.Text
 import Control.Monad.Error
 
@@ -19,6 +20,8 @@ infixr :+:
 
 type RpcResult = ErrorT RpcError
 
-data RpcError = RpcError Int String deriving Show
+data RpcError = RpcError { errorCode :: Int
+                         , errorMessage :: String
+                         , errorData :: A.Value } deriving Show
 
 instance Error RpcError

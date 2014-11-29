@@ -18,3 +18,5 @@ class Monad m => Server f ps r m | m ps r -> f where
 
 instance Monad m => Server (RpcResult m a) () a m
 instance Server f ps r m => Server (a -> f) (a :+: ps) r m
+
+data Method f ps r m = Method String ps f

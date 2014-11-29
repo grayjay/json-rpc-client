@@ -1,7 +1,7 @@
 module Network.JsonRpc.Common
     ( Signature (..)
     , RpcResult
-    , RpcError
+    , RpcError (..)
     , Param (..)
     , (:+:) (..)) where
 
