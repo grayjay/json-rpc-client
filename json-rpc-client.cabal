@@ -35,6 +35,7 @@ test-suite tests
   build-depends:       base,
                        json-rpc-client,
                        json-rpc-server,
+                       bytestring,
                        aeson,
                        mtl,
                        HUnit,

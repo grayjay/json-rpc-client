@@ -7,10 +7,10 @@ import Control.Monad.Error
 
 data ResultType r = ResultType
 
-data Signature ps r = Signature String ps (ResultType r)
+data Signature ps r = Signature String ps
 
-signature :: String -> ps -> Signature ps r
-signature method params = Signature method params ResultType
+resultType :: Signature ps r -> ResultType r
+resultType _ = ResultType
 
 data Param a = Param Text
 
