@@ -39,7 +39,7 @@ instance A.FromJSON a => Client (Batch a) () a where
         where toResult rs = (fromResult . A.fromJSON) <$> rsResult (head rs)
 
 instance (Client f ps r, A.ToJSON a) => Client (a -> f) (a :+: ps) r where
-    toBatch name args (Param p :+: ps) s a = toBatch name (H.insert p (A.toJSON a) args) ps s
+    toBatch name args (p :+: ps) s a = toBatch name (H.insert p (A.toJSON a) args) ps s
 
 fromResult :: A.Result a -> a
 fromResult (A.Success x) = x
@@ -122,6 +122,6 @@ data Response = Response { rsResult :: Either RpcError A.Value
 
 instance A.FromJSON Response where
     parseJSON (A.Object v) = Response <$>
-                             (Right <$> v .: "result") <*>
+                             (Right <$> v .: "result" <|> Left <$> v .: "error")  <*>
                              v .: "id"
     parseJSON _ = mzero
