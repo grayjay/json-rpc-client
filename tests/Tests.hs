@@ -23,22 +23,50 @@ main = defaultMain tests
 
 tests :: [Test]
 tests = [ testCase "single" $ runServer (subtract 22 1) @?= (Right 21, 1)
+
         , testCase "batch length 1" $ myRunBatch (subtractB 1 2) @?= (Right (-1), 1)
+
         , let result = myRunBatch $ pure (,) <*> subtractB 7 3 <*> divideB 15 12
           in testCase "batch 2" $ result @?= (Right (4, 1.25), 2)
+
         , let result = myRunBatch $ (+) <$> subtractB 5 3 <*> ((*) <$> subtractB 11 2 <*> subtractB 15 10)
           in testCase "batch 3" $ result @?= (Right 47, 3)
+
         , let result = myRunBatch $ (*) <$> ((+) <$> subtractB 5 3 <*> subtractB 11 2) <*> subtractB 15 10
           in testCase "batch 4" $ result @?= (Right 55, 3)
+
         , testCase "notification" $ myRunBatch (subtractB_ 1 2) @?= (Right (), 1)
+
         , testCase "notification 2" $ runServer (subtract_ 1 2) @?= (Right (), 1)
+
         , let result = myRunBatch $ (,) <$> subtractB_ 5 4 <*> subtractB 20 16
           in testCase "batch with notification" $ result @?= (Right ((), 4), 2)
+
         , let result = myRunBatch $ (,) <$> subtractB 5 4 <*> subtractB_ 20 16
           in testCase "batch with notification 2" $ result @?= (Right (1, ()), 2)
+
         , let result = myRunBatch $ (:) <$> divideB 4 2 <*> ((:[]) <$> divideB 1 0)
           in testCase "batch with error" $ result @?= (Left (-32050), 1)
+
         , testCase "single error" $ runServer (divide 10 0) @?= (Left (-32050), 0)
+
+        , let result = runServer $ runBatch badServer $ (||) <$> pure True <*> pure False
+              badServer = error "unnecessarily sent to server"
+          in testCase "empty request" $ result @?= (Right True, 0)
+
+        , let result = myRunBatch $ divideB 1 0 <|> divideB 2 1
+          in testCase "alternative 1" $ result @?= (Right 2, 1)
+
+        , let result = myRunBatch $ divideB 2 1 <|> divideB 1 0
+          in testCase "alternative 2" $ result @?= (Right 2, 1)
+
+        , let result = myRunBatch $ divideB 2 0 <|> divideB 1 0
+          in testCase "alternative 3" $ result @?= (Left (-32050), 0)
+
+        , let result = myRunBatch $ divideB 2 1 <|> divideB 1 1
+          in testCase "alternative 4" $ result @?= (Right 2, 2)
+
+        , testCase "empty" $ myRunBatch (empty :: Batch String) @?= (Left (-31999), 0)
         ]
 
 type Server = RpcResult (State Int)

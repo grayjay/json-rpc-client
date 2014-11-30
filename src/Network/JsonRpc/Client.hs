@@ -64,18 +64,27 @@ runBatch server batch = let addId rq2 i = Request (rq2Method rq2) idField (rq2Pa
                           json <- sendToServer
                           ErrorT $ return $ bToResult batch (sort json)
 
+type Result = Either RpcError
+
 data Batch a = Batch { bNonNotifications :: Int
                      , bRequests :: [Request2]
-                     , bToResult :: [Response] -> Either RpcError a }
+                     , bToResult :: [Response] -> Result a }
 
 instance Functor Batch where
     fmap f (Batch n rqs g) = Batch n rqs ((f <$>) . g)
 
 instance Applicative Batch where
     pure x = Batch 0 [] (const $ return x)
-    (<*>) (Batch n1 rqs1 f1) (Batch n2 rqs2 f2) = let f3 rs = f1 rs1 <*> f2 rs2
+    (<*>) = combine (<*>)
+
+instance Alternative Batch where
+    empty = Batch 0 [] (const $ throwError noMsg)
+    (<|>) = combine (<|>)
+
+combine :: (Result a -> Result b -> Result c) -> Batch a -> Batch b -> Batch c
+combine f (Batch n1 rqs1 g1) (Batch n2 rqs2 g2) = let g3 rs = g1 rs1 `f` g2 rs2
                                                           where (rs1, rs2) = splitAt n1 rs
-                                                  in Batch (n1 + n2) (rqs1 ++ rqs2) f3
+                                                  in Batch (n1 + n2) (rqs1 ++ rqs2) g3
 
 toFunction :: (Monad m, Functor m, Client f ps r, Compose (Batch r) (RpcResult m r) f g)
            => (B.ByteString -> m B.ByteString) -> Signature ps r -> g
