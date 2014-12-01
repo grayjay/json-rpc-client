@@ -1,12 +1,10 @@
 {-# LANGUAGE OverloadedStrings,
-             NoMonomorphismRestriction,
              MultiParamTypeClasses,
              FunctionalDependencies,
              FlexibleInstances,
              UndecidableInstances,
              TypeOperators,
-             FlexibleContexts,
-             InstanceSigs #-}
+             FlexibleContexts #-}
 
 module Network.JsonRpc.Client
               ( toFunction
@@ -26,7 +24,7 @@ import Data.Aeson ((.=), (.:))
 import qualified Data.ByteString.Lazy as B
 import qualified Data.HashMap.Lazy as H
 import Data.Function (on)
-import Data.Maybe (catMaybes, fromJust)
+import Data.Maybe (catMaybes)
 import Data.List (sortBy)
 import Control.Applicative
 import Control.Monad.Error
@@ -36,14 +34,13 @@ class Client f ps r | ps r -> f where
 
 instance A.FromJSON a => Client (Batch a) () a where
     toBatch name args _ _ = Batch 1 [Request2 name False args] toResult
-        where toResult rs = (fromResult . A.fromJSON) <$> rsResult (head rs)
+        where toResult = decode <=< rsResult . head
+              decode rs = case A.fromJSON rs of
+                           A.Success x -> Right x
+                           A.Error msg -> Left $ strMsg $ "Client received wrong result type: " ++ msg
 
 instance (Client f ps r, A.ToJSON a) => Client (a -> f) (a :+: ps) r where
     toBatch name args (p :+: ps) s a = toBatch name (H.insert p (A.toJSON a) args) ps s
-
-fromResult :: A.Result a -> a
-fromResult (A.Success x) = x
-fromResult (A.Error str) = error str
 
 toBatchFunction :: Client f ps r => Signature ps r -> f
 toBatchFunction s@(Signature name ps) = toBatch name H.empty ps (resultType s)
@@ -53,12 +50,15 @@ runBatch :: (Functor m, Monad m)
 runBatch server batch = let addId rq2 i = Request (rq2Method rq2) idField (rq2Params rq2)
                                 where idField = if rq2IsNotification rq2 then Nothing else Just $ A.Number $ fromInteger i
                             requests = zipWith addId (bRequests batch) [1..]
-                            decode = fromResult . A.fromJSON . fromJust . A.decode
-                            process = lift . server . A.encode
+                            decode x = case A.eitherDecode x of
+                                Left msg -> throwError $ strMsg $ "Client cannot parse JSON response: " ++ msg
+                                Right r -> return r
+                            process rq = lift $ server $ A.encode rq
                             sendToServer = case requests of
                                              [] -> return []
-                                             [rq] -> ((:[]) . decode) <$> process rq
-                                             rqs -> decode <$> process rqs
+                                             [rq] -> applyNonNull (((:[]) <$>) . decode) =<< process rq
+                                             rqs -> applyNonNull decode =<< process rqs
+                            applyNonNull f rsp = if B.null rsp then return [] else f rsp
                             sort = sortBy (compare `on` rsId)
                         in do
                           json <- sendToServer
@@ -130,7 +130,7 @@ data Response = Response { rsResult :: Either RpcError A.Value
                          , rsId :: Int } deriving Show
 
 instance A.FromJSON Response where
-    parseJSON (A.Object v) = Response <$>
-                             (Right <$> v .: "result" <|> Left <$> v .: "error")  <*>
-                             v .: "id"
-    parseJSON _ = mzero
+    parseJSON = A.withObject "JSON RPC response object" $
+                \v -> Response <$>
+                      (Right <$> v .: "result" <|> Left <$> v .: "error")  <*>
+                      v .: "id"

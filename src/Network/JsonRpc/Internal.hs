@@ -35,8 +35,8 @@ instance A.ToJSON RpcError where
                         , "data" .= errorData e ]
 
 instance A.FromJSON RpcError where
-    parseJSON (A.Object v) = RpcError <$>
-                             v .: "code" <*>
-                             v .: "message" <*>
-                             v .:? "data"
-    parseJSON _ = mzero
+    parseJSON = A.withObject "JSON RPC error object" $
+                \v -> RpcError <$>
+                      v .: "code" <*>
+                      v .: "message" <*>
+                      v .:? "data"

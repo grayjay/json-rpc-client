@@ -36,6 +36,7 @@ test-suite tests
                        json-rpc-client,
                        json-rpc-server,
                        bytestring,
+                       regex-posix,
                        aeson,
                        mtl,
                        HUnit,

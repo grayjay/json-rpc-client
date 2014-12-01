@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings,
-             NoMonomorphismRestriction,
              MultiParamTypeClasses,
              FunctionalDependencies,
              FlexibleInstances,

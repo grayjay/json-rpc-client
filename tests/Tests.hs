@@ -8,9 +8,11 @@ import Network.JsonRpc.Client
 import Network.JsonRpc.Common
 import qualified "json-rpc-server" Network.JsonRpc.Server as S
 import qualified Data.Aeson as A
+import Data.Aeson ((.=))
 import qualified Data.ByteString.Lazy as B
+import Text.Regex.Posix ((=~))
 import Control.Applicative
-import Data.Maybe (fromJust)
+import Data.Maybe (fromMaybe)
 import Control.Monad.Error
 import Control.Monad.State
 import Test.HUnit hiding (State, Test)
@@ -67,6 +69,18 @@ tests = [ testCase "single" $ runServer (subtract 22 1) @?= (Right 21, 1)
           in testCase "alternative 4" $ result @?= (Right 2, 2)
 
         , testCase "empty" $ myRunBatch (empty :: Batch String) @?= (Left (-31999), 0)
+
+        , let result = toFunction (constServer "{") subtractSig 2 1
+          in testCase "bad JSON response" $
+             (runServer result @?= (Left (-31999), 0)) >>
+             assertErrorMsg result "Client .* JSON"
+
+        , let result = toFunction badServer subtractSig 2 1
+              badServer = constServer $ A.encode $ A.object ["result" .= True]
+          in testCase "bad JSON response" $
+             (runServer result @?= (Left (-31999), 0)) >>
+             assertErrorMsg result "Client cannot parse JSON" >>
+             assertErrorMsg result "key .* not present"
         ]
 
 type Server = RpcResult (State Int)
@@ -94,11 +108,21 @@ runServer server = runState (mapLeft errorCode <$> runErrorT server) 0
     where mapLeft f (Left x) = Left $ f x
           mapLeft _ (Right x) = Right x
 
+assertErrorMsg :: Server a -> String -> Assertion
+assertErrorMsg server expected = case evalState (runErrorT server) 0 of
+                                   Right _ -> assertFailure "Expected an error, but got a result."
+                                   Left err -> assertBool msg $ errMsg =~ expected
+                                       where errMsg = errorMessage err
+                                             msg = "Wrong error message: " ++ errMsg
+
 myRunBatch :: A.FromJSON a => Batch a -> (Either Int a, Int)
 myRunBatch = runServer . runBatch myServer
 
 myServer :: B.ByteString -> State Int B.ByteString
-myServer = (fromJust <$>) . S.callWithBatchStrategy (sequence . reverse) methods
+myServer = (fromMaybe "" <$>) . S.callWithBatchStrategy (sequence . reverse) methods
+
+constServer :: B.ByteString -> B.ByteString -> State Int B.ByteString
+constServer = const . return
 
 methods = S.toMethods [subtractMethod, divideMethod]
 
