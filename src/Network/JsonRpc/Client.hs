@@ -34,13 +34,13 @@ import Network.JsonRpc.Server (RpcResult, RpcError (..), rpcError)
 import qualified Data.Aeson as A
 import Data.Aeson ((.=), (.:))
 import Data.Text (Text (), pack)
-import qualified Data.ByteString.Lazy as B
+import Data.ByteString.Lazy (ByteString)
 import qualified Data.HashMap.Lazy as H
 import Data.Function (on)
 import Data.Maybe (catMaybes)
 import Data.List (sortBy)
-import Control.Applicative
-import Control.Monad.Error
+import Control.Applicative (Applicative (..), Alternative (..), (<$>), (<*>), (<|>))
+import Control.Monad.Error (ErrorT (..), throwError, lift, (<=<))
 
 -- | Relationship between the parameters ('ps'), return type ('r'),
 --   and client-side function ('f') of a JSON-RPC method.
@@ -60,7 +60,7 @@ instance (ClientFunction ps r f, A.ToJSON a) => ClientFunction (a ::: ps) r (a -
 -- | Function used to send requests to the server.
 --   'Nothing' represents no response, as when a JSON-RPC
 --   server receives only notifications.
-type Server m = B.ByteString -> m (Maybe B.ByteString)
+type Server m = ByteString -> m (Maybe ByteString)
 
 -- | Creates a function for calling a JSON-RPC method on the server.
 toFunction :: (Monad m, Functor m, ClientFunction ps r f, ComposeMultiParam (Batch r -> RpcResult m r) f g) =>

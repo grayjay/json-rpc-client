@@ -5,17 +5,17 @@ module Main (main) where
 
 import Network.JsonRpc.Client
 import Network.JsonRpc.ServerAdapter
-import Network.JsonRpc.Server
+import Network.JsonRpc.Server (toMethods, rpcError, callWithBatchStrategy)
 import qualified Data.Aeson as A
 import Data.Aeson ((.=))
 import qualified Data.ByteString.Lazy as B
-import Data.List (isInfixOf)
 import Data.Text (unpack)
-import Control.Applicative
-import Control.Monad.Error
-import Control.Monad.State
+import Data.List (isInfixOf)
+import Control.Applicative (pure, empty, (<$>), (<$), (<*>), (<|>))
+import Control.Monad.Error (ErrorT, runErrorT, throwError)
+import Control.Monad.State (State, runState, evalState, modify, when)
 import Test.HUnit hiding (State, Test)
-import Test.Framework (defaultMain, Test)
+import Test.Framework (Test, defaultMain)
 import Test.Framework.Providers.HUnit (testCase)
 import Prelude hiding (subtract)
 

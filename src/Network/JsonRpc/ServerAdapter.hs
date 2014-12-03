@@ -8,8 +8,9 @@ module Network.JsonRpc.ServerAdapter ( -- * Server Methods
                                        toServerMethod
                                      , ConvertParams ) where
 
-import Network.JsonRpc.Server
-import Network.JsonRpc.Client
+import Network.JsonRpc.Server ( Method, MethodParams
+                              , Parameter (..), toMethod, (:+:) (..))
+import Network.JsonRpc.Client (Signature (..), (:::) (..))
 
 -- | Relationship between the parameters in a 'Signature' ('p1')
 --   and the parameters expected by 'toMethod' ('p2') for a given
