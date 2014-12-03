@@ -5,18 +5,27 @@ license-file:        LICENSE
 category:            Network, JSON
 author:              Kristen Kozak
 maintainer:          Kristen Kozak <grayjay@wordroute.com>
--- synopsis:
+synopsis:            JSON-RPC 2.0 on the client side.
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
--- description:
+-- tested-with:
+description:         An implementation of the client side of JSON-RPC 2.0.  See
+                     <http://www.jsonrpc.org/specification>. This library supports
+                     batch requests and notifications, as well as single method
+                     calls.  It also provides a function for creating corresponding
+                     server-side methods with the package
+                     <http://hackage.haskell.org/package/json-rpc-server json-rpc-server>.
+                     This library does not handle transport, so functions require a
+                     server connection of type @Monad m => ByteString -> m (Maybe ByteString)@.
+                     It currently only sends arguments to the server by-name.  See the
+                     "Network.JsonRpc.Client" module for an example.
 
 library
-  exposed-modules:     Network.JsonRpc.Server
-                       Network.JsonRpc.Client
-                       Network.JsonRpc.Common
-  other-modules:       Network.JsonRpc.Internal
+  exposed-modules:     Network.JsonRpc.Client
+                       Network.JsonRpc.ServerAdapter
   build-depends:       base,
+                       json-rpc-server,
                        bytestring,
                        aeson,
                        mtl,
@@ -36,9 +45,9 @@ test-suite tests
                        json-rpc-client,
                        json-rpc-server,
                        bytestring,
-                       regex-posix,
                        aeson,
                        mtl,
+                       text,
                        HUnit,
                        test-framework,
                        test-framework-hunit

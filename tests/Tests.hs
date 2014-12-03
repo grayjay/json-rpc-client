@@ -1,18 +1,17 @@
 {-# LANGUAGE OverloadedStrings,
-             PackageImports,
              TypeOperators #-}
 
 module Main (main) where
 
 import Network.JsonRpc.Client
-import Network.JsonRpc.Common
-import qualified "json-rpc-server" Network.JsonRpc.Server as S
+import Network.JsonRpc.ServerAdapter
+import Network.JsonRpc.Server
 import qualified Data.Aeson as A
 import Data.Aeson ((.=))
 import qualified Data.ByteString.Lazy as B
-import Text.Regex.Posix ((=~))
+import Data.List (isInfixOf)
+import Data.Text (unpack)
 import Control.Applicative
-import Data.Maybe (fromMaybe)
 import Control.Monad.Error
 import Control.Monad.State
 import Test.HUnit hiding (State, Test)
@@ -70,23 +69,35 @@ tests = [ testCase "single" $ runServer (subtract 22 1) @?= (Right 21, 1)
 
         , testCase "empty" $ myRunBatch (empty :: Batch String) @?= (Left (-31999), 0)
 
-        , let result = toFunction (constServer "{") subtractSig 2 1
-          in testCase "bad JSON response" $
-             (runServer result @?= (Left (-31999), 0)) >>
-             assertErrorMsg result "Client .* JSON"
+        , testCase "bad JSON result" $
+                   assertErrorMsg "{" ["Client cannot parse JSON response"]
 
-        , let result = toFunction badServer subtractSig 2 1
-              badServer = constServer $ A.encode $ A.object ["result" .= True]
-          in testCase "bad JSON response" $
-             (runServer result @?= (Left (-31999), 0)) >>
-             assertErrorMsg result "Client cannot parse JSON" >>
-             assertErrorMsg result "key .* not present"
+        , let response = A.encode $ A.object [ "result" .= A.Number 3
+                                             , "jsonrpc" .= A.String "2.0" ]
+          in testCase "missing response attribute" $ assertErrorMsg response
+                 [ "Client cannot parse JSON response"
+                 , "key \"id\" not present" ]
+
+        , let response = A.encode $ A.object [ "id" .= A.Number 3
+                                             , "result" .= True
+                                             , "jsonrpc" .= A.String "2.0"]
+          in testCase "wrong result type" $ assertErrorMsg response ["wrong result type"]
+
+        , let response = A.encode [A.String "element"]
+          in testCase "non-object response" $
+             assertErrorMsg response ["expecting a JSON-RPC response"]
+
+        , let response = A.encode $ A.object [ "id" .= A.Number 1
+                                             , "error" .= A.Null
+                                             , "jsonrpc" .= A.String "2.0" ]
+          in testCase "wrong error type" $
+             assertErrorMsg response ["expecting a JSON-RPC error"]
         ]
 
-type Server = RpcResult (State Int)
+type Result r = RpcResult (State Int) r
 
-subtractSig :: Signature (Int :+: Int :+: ()) Int
-subtractSig = Signature "subtract" ("x" :+: "y" :+: ())
+subtractSig :: Signature (Int ::: Int ::: ()) Int
+subtractSig = Signature "subtract" ("x" ::: "y" ::: ())
 
 subtract = toFunction myServer subtractSig
 
@@ -96,44 +107,48 @@ subtractB_ = toBatchFunction_ subtractSig
 
 subtractB = toBatchFunction subtractSig
 
-divideSig :: Signature (Double :+: Double :+: ()) Double
-divideSig = Signature "divide" ("x" :+: "y" :+: ())
+divideSig :: Signature (Double ::: Double ::: ()) Double
+divideSig = Signature "divide" ("x" ::: "y" ::: ())
 
 divide = toFunction myServer divideSig
 
 divideB = toBatchFunction divideSig
 
-runServer :: Server a -> (Either Int a, Int)
-runServer server = runState (mapLeft errorCode <$> runErrorT server) 0
+runServer :: Result a -> (Either Int a, Int)
+runServer server = runState (mapLeft errCode <$> runErrorT server) 0
     where mapLeft f (Left x) = Left $ f x
           mapLeft _ (Right x) = Right x
 
-assertErrorMsg :: Server a -> String -> Assertion
-assertErrorMsg server expected = case evalState (runErrorT server) 0 of
-                                   Right _ -> assertFailure "Expected an error, but got a result."
-                                   Left err -> assertBool msg $ errMsg =~ expected
-                                       where errMsg = errorMessage err
-                                             msg = "Wrong error message: " ++ errMsg
+assertErrorMsgContains :: Result a -> String -> Assertion
+assertErrorMsgContains server expected = case evalState (runErrorT server) 0 of
+                                           Right _ -> assertFailure "Expected an error, but got a result."
+                                           Left err -> assertBool msg $ expected `isInfixOf` errorMsg
+                                               where errorMsg = unpack $ errMsg err
+                                                     msg = "Wrong error message: " ++ errorMsg
+
+assertErrorMsg :: B.ByteString -> [String] -> Assertion
+assertErrorMsg response expected = (runServer result @?= (Left (-31999), 0)) >>
+                                   mapM_ (assertErrorMsgContains result) expected
+                 where result = toFunction badServer subtractSig 10 1
+                       badServer = constServer response
 
 myRunBatch :: A.FromJSON a => Batch a -> (Either Int a, Int)
 myRunBatch = runServer . runBatch myServer
 
-myServer :: B.ByteString -> State Int B.ByteString
-myServer = (fromMaybe "" <$>) . S.callWithBatchStrategy (sequence . reverse) methods
+myServer :: B.ByteString -> State Int (Maybe B.ByteString)
+myServer = callWithBatchStrategy (sequence . reverse) methods
 
-constServer :: B.ByteString -> B.ByteString -> State Int B.ByteString
-constServer = const . return
+constServer :: B.ByteString -> B.ByteString -> State Int (Maybe B.ByteString)
+constServer = const . return . Just
 
-methods = S.toMethods [subtractMethod, divideMethod]
+methods = toMethods [subtractMethod, divideMethod]
 
-subtractMethod = S.toMethod "subtract" f params
-    where params = S.Required "x" S.:+: S.Required "y" S.:+: ()
-          f :: Int -> Int -> S.RpcResult (State Int) Int
+subtractMethod = toServerMethod subtractSig f
+    where f :: Int -> Int -> RpcResult (State Int) Int
           f x y = (x - y) <$ modify (+1)
 
-divideMethod = S.toMethod "divide" f params
-    where params = S.Required "x" S.:+: S.Required "y" S.:+: ()
-          f :: Double -> Double -> S.RpcResult (State Int) Double
+divideMethod = toServerMethod divideSig f
+    where f :: Double -> Double -> RpcResult (State Int) Double
           f x y = do
-            when (y == 0) $ throwError $ S.rpcError (-32050) "divide by zero"
+            when (y == 0) $ throwError $ rpcError (-32050) "divide by zero"
             x / y <$ modify (+1)
