@@ -51,18 +51,18 @@ type Result = Either RpcError
 
 -- | Signature specifying the name,
 --   parameter names and types ('ps'), and return type ('r') of a method.
-data Signature ps r = Signature Text ps
+data Signature ps r = Signature Text ps deriving Show
 
 -- | A node in a linked list specifying parameter names and types.
 --   It is right associative.
-data p ::: ps = Text ::: ps
+data p ::: ps = Text ::: ps deriving Show
 infixr :::
 
 -- | Creates a function for calling a JSON-RPC method as part of a batch request.
 toBatchFunction :: ClientFunction ps r f =>
                    Signature ps r -- ^ Method signature.
                 -> f              -- ^ Client-side function with a return type of @'Batch' r@.
-toBatchFunction s@(Signature name ps) = toBatch name H.empty ps (resultType s)
+toBatchFunction s@(Signature name params) = toBatch name H.empty params (resultType s)
 
 -- | Creates a function for calling a JSON-RPC method as a notification and as part of a batch request.
 toBatchFunction_ :: (ClientFunction ps r f, ComposeMultiParam (Batch r -> Batch ()) f g) =>

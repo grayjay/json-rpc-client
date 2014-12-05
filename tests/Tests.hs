@@ -3,6 +3,7 @@
 
 module Main (main) where
 
+import qualified Properties
 import Network.JsonRpc.Client
 import Network.JsonRpc.ServerAdapter
 import Network.JsonRpc.Server (toMethods, rpcError, callWithBatchStrategy)
@@ -23,7 +24,8 @@ main :: IO ()
 main = defaultMain tests
 
 tests :: [Test]
-tests = [ testCase "single" $ runServer (subtract 22 1) @?= (Right 21, 1)
+tests = Properties.properties ++
+        [ testCase "single" $ runServer (subtract 22 1) @?= (Right 21, 1)
 
         , testCase "batch length 1" $ myRunBatch (subtractB 1 2) @?= (Right (-1), 1)
 
