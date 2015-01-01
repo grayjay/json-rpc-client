@@ -155,7 +155,7 @@ clientCode = -31999
 
 -- | Relationship between the parameters ('ps'), return type ('r'),
 --   and client-side function ('f') of a JSON-RPC method.
-class ClientFunction ps r f | ps r -> f where
+class ClientFunction ps r f | ps r -> f, f -> ps r where
     toBatch :: Text -> A.Object -> ps -> ResultType r -> f
 
 instance A.FromJSON r => ClientFunction () r (Batch r) where

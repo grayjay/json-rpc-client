@@ -21,7 +21,7 @@ toServerMethod (Signature name ps) f = toMethod name f $ createServerParams ps
 -- | Relationship between the parameters in a 'Signature' ('ps1')
 --   and the parameters expected by 'toMethod' ('ps2') for a given
 --   RPC method.
-class ConvertParams ps1 ps2 | ps1 -> ps2 where
+class ConvertParams ps1 ps2 | ps1 -> ps2, ps2 -> ps1 where
     createServerParams :: ps1 -> ps2
 
 instance ConvertParams () () where

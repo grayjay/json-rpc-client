@@ -1,9 +1,8 @@
 {-# LANGUAGE OverloadedStrings,
              TypeOperators #-}
 
-module Main (main) where
+module Tests (tests) where
 
-import qualified Properties
 import Network.JsonRpc.Client
 import Network.JsonRpc.ServerAdapter
 import Network.JsonRpc.Server (toMethods, rpcError, callWithBatchStrategy)
@@ -13,19 +12,15 @@ import qualified Data.ByteString.Lazy as B
 import Data.Text (unpack)
 import Data.List (isInfixOf)
 import Control.Applicative (pure, empty, (<$>), (<$), (<*>), (<|>))
-import Control.Monad.Error (ErrorT, runErrorT, throwError)
+import Control.Monad.Error (runErrorT, throwError)
 import Control.Monad.State (State, runState, evalState, modify, when)
 import Test.HUnit hiding (State, Test)
-import Test.Framework (Test, defaultMain)
+import Test.Framework (Test)
 import Test.Framework.Providers.HUnit (testCase)
 import Prelude hiding (subtract)
 
-main :: IO ()
-main = defaultMain tests
-
 tests :: [Test]
-tests = Properties.properties ++
-        [ testCase "single" $ runServer (subtract 22 1) @?= (Right 21, 1)
+tests = [ testCase "single" $ runServer (subtract 22 1) @?= (Right 21, 1)
 
         , testCase "batch length 1" $ myRunBatch (subtractB 1 2) @?= (Right (-1), 1)
 
