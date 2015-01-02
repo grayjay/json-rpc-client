@@ -1,9 +1,15 @@
-{-# LANGUAGE OverloadedStrings,
+{-# LANGUAGE CPP,
+             OverloadedStrings,
              TypeOperators,
              MultiParamTypeClasses,
+             TypeSynonymInstances,
              UndecidableInstances,
              FlexibleContexts,
              FlexibleInstances #-}
+
+#if MIN_VERSION_mtl(2,2,1)
+{-# OPTIONS_GHC -fno-warn-deprecations #-}
+#endif
 
 module Properties (properties) where
 
@@ -18,10 +24,15 @@ import Data.List (nub)
 import Data.Traversable (traverse)
 import Control.Applicative (pure, (<$>), (<*>))
 import Test.QuickCheck( Arbitrary (..), CoArbitrary (..), Blind (..)
-                      , Property, Gen, listOf, oneof, property, (===), (==>))
-import Test.QuickCheck.Gen.Unsafe (promote)
+                      , Property, Gen, listOf, oneof, (==>))
 import Test.Framework (Test)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
+
+#if MIN_VERSION_QuickCheck(2,7,0)
+import Test.QuickCheck.Gen.Unsafe (promote)
+#else
+import Test.QuickCheck.Gen (promote)
+#endif
 
 properties :: [Test]
 properties = [ testProperty "rpc vs. direct call" prop_rpcVsDirect
@@ -45,7 +56,7 @@ prop_rpcVsDirect :: Signature (A ::: B ::: ()) C
                  -> Blind (A -> B -> RpcResult (State D) C)
                  -> A -> B -> D -> Property
 prop_rpcVsDirect sig@(Signature _ ps) (Blind f) x y state = unique (paramNames ps) ==>
-                                                            run (f x y) === run (rpcFunction x y)
+                                                            run (f x y) == run (rpcFunction x y)
     where server = call $ toMethods [toServerMethod sig f]
           rpcFunction = toFunction server sig
           run result = runState (runErrorT result) state
@@ -57,12 +68,12 @@ prop_rpcVsDirect sig@(Signature _ ps) (Blind f) x y state = unique (paramNames p
 -- after the first failure.
 prop_singleVsBatch :: Signature (A ::: B ::: ()) C
                    -> Blind (A -> B -> RpcResult (State D) C)
-                   -> [(A, B)] -> D -> Property
+                   -> [(A, B)] -> D -> Bool
 prop_singleVsBatch sig (Blind f) args state = let server = call $ toMethods [toServerMethod sig f]
                                                   function = toFunction server sig
                                                   functionB = toBatchFunction sig
                                                   run result = evalState (runErrorT result) state
-                                              in run (mapM (uncurry function) args) ===
+                                              in run (mapM (uncurry function) args) ==
                                                  run (runBatch server $ traverse (uncurry functionB) args)
 
 type Sigs = Signature (A ::: B ::: ()) C
@@ -73,8 +84,8 @@ prop_functorId :: Sigs
                -> ToServer Sigs S
                -> ToBatch Sigs A
                -> S
-               -> Property
-prop_functorId sigs toServer toBatchX state = run (fmap id x) === run (id x)
+               -> Bool
+prop_functorId sigs toServer toBatchX state = run (fmap id x) == run (id x)
     where x = getBatch toBatchX sigs
           run = myRunBatch toServer sigs state
 
@@ -84,9 +95,9 @@ prop_functorComposition :: Sigs
                         -> Blind (A -> B)
                         -> ToBatch Sigs A
                         -> S
-                        -> Property
+                        -> Bool
 prop_functorComposition sigs toServer (Blind f) (Blind g) toBatchX state =
-                            run (fmap (f . g) x) === run (fmap f . fmap g $ x)
+                            run (fmap (f . g) x) == run (fmap f . fmap g $ x)
     where x = getBatch toBatchX sigs
           run = myRunBatch toServer sigs state
 
@@ -94,8 +105,8 @@ prop_applicativeId :: Sigs
                    -> ToServer Sigs S
                    -> ToBatch Sigs A
                    -> S
-                   -> Property
-prop_applicativeId sigs toServer toBatch state = run (pure id <*> v) === run v
+                   -> Bool
+prop_applicativeId sigs toServer toBatch state = run (pure id <*> v) == run v
     where v = getBatch toBatch sigs
           run = myRunBatch toServer sigs state
 
@@ -105,9 +116,9 @@ prop_applicativeComposition :: Sigs
                             -> ToBatch Sigs (A -> B)
                             -> ToBatch Sigs A
                             -> S
-                            -> Property
+                            -> Bool
 prop_applicativeComposition sigs toServer toBatchU toBatchV toBatchW state =
-                                      run (pure (.) <*> u <*> v <*> w) ===
+                                      run (pure (.) <*> u <*> v <*> w) ==
                                       run (u <*> (v <*> w))
     where u = getBatch toBatchU sigs
           v = getBatch toBatchV sigs
@@ -119,9 +130,9 @@ prop_applicativeHomomorphism :: Sigs
                              -> Blind (A -> B)
                              -> A
                              -> S
-                             -> Property
+                             -> Bool
 prop_applicativeHomomorphism sigs toServer (Blind f) x state =
-                                      run (pure f <*> pure x) ===
+                                      run (pure f <*> pure x) ==
                                       run (pure (f x))
     where run = myRunBatch toServer sigs state
 
@@ -130,9 +141,9 @@ prop_applicativeInterchange :: Sigs
                             -> ToBatch Sigs (A -> B)
                             -> A
                             -> S
-                            -> Property
+                            -> Bool
 prop_applicativeInterchange sigs toServer toBatchU y state =
-                                      run (u <*> pure y) ===
+                                      run (u <*> pure y) ==
                                       run (pure ($ y) <*> u)
     where u = getBatch toBatchU sigs
           run = myRunBatch toServer sigs state
@@ -145,8 +156,8 @@ prop_noUnexpectedErrors :: Sigs
 prop_noUnexpectedErrors sigs toServer toBatch state = unique (methodNames sigs) ==>
                                                     all unique (allParamNames sigs)  ==>
                                                     case run batch of
-                                                      (Left err, _) -> err === testError
-                                                      _ -> property True
+                                                      (Left err, _) -> err == testError
+                                                      _ -> True
     where batch = getBatch toBatch sigs
           run = myRunBatch toServer sigs state
 

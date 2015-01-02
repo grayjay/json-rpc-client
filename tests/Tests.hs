@@ -1,5 +1,10 @@
-{-# LANGUAGE OverloadedStrings,
+{-# LANGUAGE CPP,
+             OverloadedStrings,
              TypeOperators #-}
+
+#if MIN_VERSION_mtl(2,2,1)
+{-# OPTIONS_GHC -fno-warn-deprecations #-}
+#endif
 
 module Tests (tests) where
 
@@ -67,7 +72,7 @@ tests = [ testCase "single" $ runServer (subtract 22 1) @?= (Right 21, 1)
         , testCase "empty" $ myRunBatch (empty :: Batch String) @?= (Left (-31999), 0)
 
         , testCase "bad JSON result" $
-                   assertErrorMsg "{" ["Client cannot parse JSON response"]
+                   assertErrorMsg (A.encode $ A.Number 3) ["Client cannot parse JSON response"]
 
         , let response = A.encode $ A.object [ "result" .= A.Number 3
                                              , "jsonrpc" .= A.String "2.0" ]
@@ -83,12 +88,6 @@ tests = [ testCase "single" $ runServer (subtract 22 1) @?= (Right 21, 1)
         , let response = A.encode [A.String "element"]
           in testCase "non-object response" $
              assertErrorMsg response ["expecting a JSON-RPC response"]
-
-        , let response = A.encode $ A.object [ "id" .= A.Number 1
-                                             , "error" .= A.Null
-                                             , "jsonrpc" .= A.String "2.0" ]
-          in testCase "wrong error type" $
-             assertErrorMsg response ["expecting a JSON-RPC error"]
         ]
 
 type Result r = RpcResult (State Int) r

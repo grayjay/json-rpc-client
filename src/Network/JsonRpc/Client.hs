@@ -1,10 +1,15 @@
-{-# LANGUAGE OverloadedStrings,
+{-# LANGUAGE CPP,
+             OverloadedStrings,
              MultiParamTypeClasses,
              FunctionalDependencies,
              FlexibleInstances,
              UndecidableInstances,
              TypeOperators,
              FlexibleContexts #-}
+
+#if MIN_VERSION_mtl(2,2,1)
+{-# OPTIONS_GHC -fno-warn-deprecations #-}
+#endif
 
 -- | Functions for implementing the client side of JSON-RPC 2.0.
 --   See <http://www.jsonrpc.org/specification>.
