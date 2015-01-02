@@ -9,7 +9,7 @@ synopsis:            JSON-RPC 2.0 on the client side.
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
--- tested-with:
+tested-with:         GHC == 7.0.4, GHC == 7.4.2, GHC == 7.6.3, GHC == 7.8.3
 description:         An implementation of the client side of JSON-RPC 2.0.  See
                      <http://www.jsonrpc.org/specification>. This library supports
                      batch requests and notifications, as well as single method
