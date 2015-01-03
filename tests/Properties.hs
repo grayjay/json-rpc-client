@@ -208,7 +208,7 @@ instance (SignatureSet ss, Arbitrary r) => Arbitrary (ToBatch ss r) where
 instance (Arbitrary s, Arbitrary ss) => Arbitrary (s :*: ss) where
     arbitrary = (:*:) <$> arbitrary <*> arbitrary
 
-newtype ToServer ss s = ToServer { getServer :: ss -> Server (State s) }
+newtype ToServer ss s = ToServer { getServer :: ss -> Connection (State s) }
 
 instance Show (ToServer ss s) where
     show _ = "ToServer"

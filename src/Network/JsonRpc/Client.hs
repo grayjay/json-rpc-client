@@ -14,7 +14,7 @@
 -- | Functions for implementing the client side of JSON-RPC 2.0.
 --   See <http://www.jsonrpc.org/specification>.
 module Network.JsonRpc.Client ( -- * Types
-                                Server
+                                Connection
                               , RpcResult
                               -- * Signatures
                               , Signature (..)
@@ -50,7 +50,7 @@ import Control.Monad.Error (ErrorT (..), throwError, lift, (<=<))
 -- | Function used to send requests to the server.
 --   'Nothing' represents no response, as when a JSON-RPC
 --   server receives only notifications.
-type Server m = ByteString -> m (Maybe ByteString)
+type Connection m = ByteString -> m (Maybe ByteString)
 
 type Result = Either RpcError
 
@@ -77,14 +77,14 @@ toBatchFunction_ = composeWithBatch voidBatch
 
 -- | Creates a function for calling a JSON-RPC method on the server.
 toFunction :: (Monad m, Functor m, ClientFunction ps r f, ComposeMultiParam (Batch r -> RpcResult m r) f g) =>
-              Server m       -- ^ Function for sending requests to the server.
+              Connection m       -- ^ Function for sending requests to the server.
            -> Signature ps r -- ^ Method signature.
            -> g              -- ^ Client-side function with a return type of @'RpcResult' m r@.
 toFunction = composeWithBatch . runBatch
 
 -- | Creates a function for calling a JSON-RPC method on the server as a notification.
 toFunction_ :: (Monad m, Functor m, ClientFunction ps r f, ComposeMultiParam (Batch r -> RpcResult m ()) f g) =>
-               Server m       -- ^ Function for sending requests to the server.
+               Connection m       -- ^ Function for sending requests to the server.
             -> Signature ps r -- ^ Method signature.
             -> g              -- ^ Client-side function with a return type of @'RpcResult' m ()@.
 toFunction_ server = composeWithBatch $ runBatch server . voidBatch
@@ -100,7 +100,7 @@ composeWithBatch f = compose f . toBatchFunction
 --   
 -- 3. If the batch has multiple requests, they are sent as an array of request objects.
 runBatch :: (Monad m, Functor m) =>
-            Server m      -- ^ Function for sending requests to the server.
+            Connection m      -- ^ Function for sending requests to the server.
          -> Batch r       -- ^ Batch to be evaluated.
          -> RpcResult m r -- ^ Result.
 runBatch server batch = let requests = zipWith assignId (bRequests batch) [1..]
@@ -114,7 +114,7 @@ assignId rq i = IdRequest { idRqMethod = rqMethod rq
                           , idRqId = if rqIsNotification rq then Nothing else Just i
                           , idRqParams = rqParams rq }
 
-processRqs :: (Monad m, Functor m) => Server m -> [IdRequest] -> RpcResult m [Response]
+processRqs :: (Monad m, Functor m) => Connection m -> [IdRequest] -> RpcResult m [Response]
 processRqs server requests = case requests of
                                [] -> return []
                                [rq] -> process (:[]) rq

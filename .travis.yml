@@ -114,4 +114,12 @@ script:
       exit 1;
    fi
 
+ # build demo
+ - if [ -z "$LOWER_BOUNDS" ]; then
+     cd ..;
+     cabal configure -f demo &&
+     cabal build &&
+     ./dist/build/demo-client/demo-client './dist/build/demo-server/demo-server';
+   fi
+
 # EOF
