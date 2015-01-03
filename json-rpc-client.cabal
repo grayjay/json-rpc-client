@@ -18,7 +18,7 @@ description:         An implementation of the client side of JSON-RPC 2.0.  See
                      <http://hackage.haskell.org/package/json-rpc-server json-rpc-server>.
                      This library does not handle transport, so functions require a
                      server connection of type @Monad m => ByteString -> m (Maybe ByteString)@.
-                     It currently only sends arguments to the server by-name.  See the
+                     It currently only sends arguments to the server by name.  See the
                      "Network.JsonRpc.Client" module for an example.
 
 source-repository head
