@@ -105,11 +105,9 @@ runBatch :: (Monad m, Functor m) =>
          -> RpcResult m r -- ^ Result.
 runBatch server batch = let requests = zipWith assignId (bRequests batch) [1..]
                             sort = sortBy (compare `on` rsId)
+                            liftResult = ErrorT . return
                         in processRqs server requests >>=
                            liftResult . bToResult batch . map rsResult . sort
-
-liftResult :: Monad m => Result a -> RpcResult m a
-liftResult = ErrorT . return
 
 assignId :: Request -> Int -> IdRequest
 assignId rq i = IdRequest { idRqMethod = rqMethod rq
@@ -121,12 +119,12 @@ processRqs server requests = case requests of
                                [] -> return []
                                [rq] -> process (:[]) rq
                                rqs -> process id rqs
-    where decode x = case A.eitherDecode x of
-                       Left msg -> throwError $ parseError msg
-                       Right r -> return r
+    where decode rsp = case A.eitherDecode rsp of
+                         Right r -> return r
+                         Left msg -> throwError $ clientError $
+                                     "Client cannot parse JSON response: " ++ msg
           process f rqs = maybe (return []) (fmap f . decode) =<<
                           (lift . server . A.encode) rqs
-          parseError msg = rpcError clientCode $ pack $ "Client cannot parse JSON response: " ++ msg
 
 -- | Converts all requests in a batch to notifications.
 voidBatch :: Batch r -> Batch ()
@@ -146,15 +144,13 @@ instance Functor Batch where
     fmap f batch = batch { bToResult = fmap f . bToResult batch }
 
 instance Applicative Batch where
-    pure x = Batch { bNonNotifications = 0
-                   , bRequests = []
-                   , bToResult = const (return x) }
+    pure x = empty { bToResult = const (return x) }
     (<*>) = combine (<*>)
 
 instance Alternative Batch where
     empty = Batch { bNonNotifications = 0
                   , bRequests = []
-                  , bToResult = const $ throwError $ rpcError clientCode "" }
+                  , bToResult = const $ throwError $ clientError "empty" }
     (<|>) = combine (<|>)
 
 combine :: (Result a -> Result b -> Result c) -> Batch a -> Batch b -> Batch c
@@ -169,6 +165,9 @@ data ResultType r = ResultType
 resultType :: Signature ps r -> ResultType r
 resultType _ = ResultType
 
+clientError :: String -> RpcError
+clientError msg = rpcError clientCode $ pack msg
+
 -- | Code used for all client-side errors.  It is -31999.
 clientCode :: Int
 clientCode = -31999
@@ -182,13 +181,14 @@ instance A.FromJSON r => ClientFunction () r (Batch r) where
     toBatch name _ _ priorArgs = Batch { bNonNotifications = 1
                                        , bRequests = [Request name False priorArgs]
                                        , bToResult = decode <=< head }
-        where decode rsp = case A.fromJSON rsp of
-                             A.Success result -> Right result
-                             A.Error msg -> Left $ resultError msg
-              resultError msg = rpcError clientCode $ pack $ "Client received wrong result type: " ++ msg
+        where decode result = case A.fromJSON result of
+                                A.Success r -> Right r
+                                A.Error msg -> Left $ clientError $
+                                               "Client received wrong result type: " ++ msg
 
 instance (ClientFunction ps r f, A.ToJSON a) => ClientFunction (a ::: ps) r (a -> f) where
-    toBatch name (p ::: ps) rt priorArgs a = toBatch name ps rt (H.insert p (A.toJSON a) priorArgs)
+    toBatch name (p ::: ps) rt priorArgs a = let newArgs = H.insert p (A.toJSON a) priorArgs
+                                             in toBatch name ps rt newArgs
 
 -- | Relationship between a function ('g') taking any number of arguments and yielding a @'Batch' a@,
 --   a function ('f') taking a @'Batch' a@, and the function ('h') that applies g to all of its
@@ -217,7 +217,7 @@ instance A.ToJSON IdRequest where
                                      , Just $ "params" .= idRqParams rq]
 
 data Response = Response { rsResult :: Result A.Value
-                         , rsId :: Int } deriving Show
+                         , rsId :: Int }
 
 instance A.FromJSON Response where
     parseJSON = A.withObject "JSON-RPC response object" $
