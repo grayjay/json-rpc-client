@@ -56,25 +56,24 @@ import Control.Applicative (Applicative (..), Alternative (..), (<$>), (<*>), (<
 import Control.Monad.Error (ErrorT (..), throwError, lift, (<=<))
 
 -- $summary
--- * Create one 'Signature' for every server-side method.  'Signature's can
---   be shared between client and server, using
+-- * Create one 'Signature' for each server-side method to be called.
+--   'Signature's can be shared between client and server, using
 --   'Network.JsonRpc.ServerAdapter.toServerMethod'.
 -- * Create a function of type @Monad m => 'Connection' m@ for communicating
 --   with the server.
 -- * Create client-side functions by calling 'toFunction', 'toFunction_',
 --   'toBatchFunction', or 'toBatchFunction_' on the 'Signature's.
 -- * Client-side functions created with 'toBatchFunction' or 'toBatchFunction_'
---   return a result of type @'Batch' a@.  Combine them using 'Batch' 's
+--   return values of type @'Batch' a@.  Combine them using 'Batch' 's
 --   'Applicative' and 'Alternative' instances, before calling 'runBatch'
---   on the final result.
+--   on the result.
 
 -- $demo
 -- The <../src/demo demo folder> contains a client and server that communicate
--- using a shared set of 'Signature's.
--- The client runs the server, sending requests to stdin and receiving responses
--- from stdout.
--- Compile both programs with the @demo@ flag.  Then run the client by
--- passing it a command to run the server (e.g., @demo-client demo-server@).
+-- using a shared set of 'Signature's.  The client runs the server, sending
+-- requests to stdin and receiving responses from stdout.  Compile both
+-- programs with the @demo@ flag.  Then run the client by passing it a command
+-- to run the server (e.g., @demo-client demo-server@).
 
 -- | Function used to send requests to the server.
 --   'Nothing' represents no response, as when a JSON-RPC
@@ -106,14 +105,14 @@ toBatchFunction_ = composeWithBatch voidBatch
 
 -- | Creates a function for calling a JSON-RPC method on the server.
 toFunction :: (Monad m, Functor m, ClientFunction ps r f, ComposeMultiParam (Batch r -> RpcResult m r) f g) =>
-              Connection m       -- ^ Function for sending requests to the server.
+              Connection m   -- ^ Function for sending requests to the server.
            -> Signature ps r -- ^ Method signature.
            -> g              -- ^ Client-side function with a return type of @'RpcResult' m r@.
 toFunction = composeWithBatch . runBatch
 
 -- | Creates a function for calling a JSON-RPC method on the server as a notification.
 toFunction_ :: (Monad m, Functor m, ClientFunction ps r f, ComposeMultiParam (Batch r -> RpcResult m ()) f g) =>
-               Connection m       -- ^ Function for sending requests to the server.
+               Connection m   -- ^ Function for sending requests to the server.
             -> Signature ps r -- ^ Method signature.
             -> g              -- ^ Client-side function with a return type of @'RpcResult' m ()@.
 toFunction_ server = composeWithBatch $ runBatch server . voidBatch
@@ -129,7 +128,7 @@ composeWithBatch f = compose f . toBatchFunction
 --   
 -- 3. If the batch has multiple requests, they are sent as an array of request objects.
 runBatch :: (Monad m, Functor m) =>
-            Connection m      -- ^ Function for sending requests to the server.
+            Connection m  -- ^ Function for sending requests to the server.
          -> Batch r       -- ^ Batch to be evaluated.
          -> RpcResult m r -- ^ Result.
 runBatch server batch = let requests = zipWith assignId (bRequests batch) [1..]
