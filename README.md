@@ -10,4 +10,6 @@ calls.  It also provides a function for creating corresponding
 server-side methods with the package [json-rpc-server]
 (http://hackage.haskell.org/package/json-rpc-server).
 This library does not handle transport, so a function for
-communicating with the server must be provided.
+communicating with the server must be provided.  The
+documentation is on Hackage:
+<http://hackage.haskell.org/package/json-rpc-client>.
