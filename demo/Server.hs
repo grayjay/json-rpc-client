@@ -4,7 +4,7 @@
 module Main (main) where
 
 import Signatures (concatenateSig, incrementSig)
-import Network.JsonRpc.Server (Methods, Method, call, toMethods)
+import Network.JsonRpc.Server (Method, call, toMethods)
 import Network.JsonRpc.ServerAdapter (toServerMethod)
 import System.IO (hFlush, stdout)
 import qualified Data.ByteString.Lazy.Char8 as B
