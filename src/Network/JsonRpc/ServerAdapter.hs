@@ -3,7 +3,9 @@
              UndecidableInstances,
              TypeOperators #-}
 
--- | Convenience function for creating server-side methods from 'Signature's.
+-- | Convenience function for creating server-side methods from
+--   'Signature's with the package
+--   <http://hackage.haskell.org/package/json-rpc-server json-rpc-server>.
 module Network.JsonRpc.ServerAdapter ( -- * Server Methods
                                        toServerMethod
                                      , ConvertParams ) where

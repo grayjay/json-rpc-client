@@ -5,8 +5,8 @@ module Signatures where
 
 import Network.JsonRpc.Client
 
-concatSig :: Signature (String ::: String ::: ()) String
-concatSig = Signature "concat" ("x" ::: "y" ::: ())
+concatenateSig :: Signature (String ::: String ::: ()) String
+concatenateSig = Signature "concatenate" ("x" ::: "y" ::: ())
 
-incSig :: Signature () Int
-incSig = Signature "inc" ()
+incrementSig :: Signature () Int
+incrementSig = Signature "increment" ()

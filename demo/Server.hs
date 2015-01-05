@@ -3,7 +3,7 @@
 
 module Main (main) where
 
-import Signatures (concatSig, incSig)
+import Signatures (concatenateSig, incrementSig)
 import Network.JsonRpc.Server (Methods, Method, call, toMethods)
 import Network.JsonRpc.ServerAdapter (toServerMethod)
 import System.IO (hFlush, stdout)
@@ -27,8 +27,8 @@ methods :: Methods Server
 methods = toMethods [concatenate, increment]
 
 concatenate, increment :: Method Server
-concatenate = toServerMethod concatSig (\x y -> return $ x ++ y)
+concatenate = toServerMethod concatenateSig (\x y -> return $ x ++ y)
 
-increment = toServerMethod incSig $ ask >>= \count ->
+increment = toServerMethod incrementSig $ ask >>= \count ->
             liftIO $ modifyMVar count inc
               where inc x = return (x + 1, x + 1)

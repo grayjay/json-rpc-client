@@ -13,27 +13,35 @@
 
 -- | Functions for implementing the client side of JSON-RPC 2.0.
 --   See <http://www.jsonrpc.org/specification>.
-module Network.JsonRpc.Client ( -- * Types
-                                Connection
-                              , RpcResult
-                              -- * Signatures
-                              , Signature (..)
-                              , (:::) (..)
-                              -- * Single Requests
-                              , toFunction
-                              , toFunction_
-                              -- * Batch Requests
-                              , Batch ()
-                              , toBatchFunction
-                              , toBatchFunction_
-                              , voidBatch
-                              , runBatch
-                              -- * Errors
-                              , RpcError (..)
-                              , clientCode
-                              -- * Type Classes
-                              , ClientFunction
-                              , ComposeMultiParam) where
+
+
+module Network.JsonRpc.Client ( -- * Summary
+                                -- $summary
+
+                                -- * Demo
+                                -- $demo
+
+                                -- * Types
+                                  Connection
+                                , RpcResult
+                                -- * Signatures
+                                , Signature (..)
+                                , (:::) (..)
+                                -- * Single Requests
+                                , toFunction
+                                , toFunction_
+                                -- * Batch Requests
+                                , Batch ()
+                                , toBatchFunction
+                                , toBatchFunction_
+                                , voidBatch
+                                , runBatch
+                                -- * Errors
+                                , RpcError (..)
+                                , clientCode
+                                -- * Type Classes
+                                , ClientFunction
+                                , ComposeMultiParam) where
 
 import Network.JsonRpc.Server (RpcResult, RpcError (..), rpcError)
 import qualified Data.Aeson as A
@@ -46,6 +54,27 @@ import Data.Maybe (catMaybes)
 import Data.List (sortBy)
 import Control.Applicative (Applicative (..), Alternative (..), (<$>), (<*>), (<|>))
 import Control.Monad.Error (ErrorT (..), throwError, lift, (<=<))
+
+-- $summary
+-- * Create one 'Signature' for every server-side method.  'Signature's can
+--   be shared between client and server, using
+--   'Network.JsonRpc.ServerAdapter.toServerMethod'.
+-- * Create a function of type @Monad m => 'Connection' m@ for communicating
+--   with the server.
+-- * Create client-side functions by calling 'toFunction', 'toFunction_',
+--   'toBatchFunction', or 'toBatchFunction_' on the 'Signature's.
+-- * Client-side functions created with 'toBatchFunction' or 'toBatchFunction_'
+--   return a result of type @'Batch' a@.  Combine them using 'Batch' 's
+--   'Applicative' and 'Alternative' instances, before calling 'runBatch'
+--   on the final result.
+
+-- $demo
+-- The <../src/demo demo folder> contains a client and server that communicate
+-- using a shared set of 'Signature's.
+-- The client runs the server, sending requests to stdin and receiving responses
+-- from stdout.
+-- Compile both programs with the @demo@ flag.  Then run the client by
+-- passing it a command to run the server (e.g., @demo-client demo-server@).
 
 -- | Function used to send requests to the server.
 --   'Nothing' represents no response, as when a JSON-RPC
@@ -214,7 +243,10 @@ instance A.ToJSON IdRequest where
     toJSON rq = A.object $ catMaybes [ Just $ "jsonrpc" .= A.String "2.0"
                                      , Just $ "method" .= idRqMethod rq
                                      , ("id" .=) <$> idRqId rq
-                                     , Just $ "params" .= idRqParams rq]
+                                     , let params = idRqParams rq
+                                       in if H.null params
+                                          then Nothing
+                                          else Just $ "params" .= params ]
 
 data Response = Response { rsResult :: Result A.Value
                          , rsId :: Int }
