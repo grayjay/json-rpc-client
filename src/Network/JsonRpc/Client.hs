@@ -70,10 +70,10 @@ import Control.Monad.Error (ErrorT (..), throwError, lift, (<=<))
 
 -- $demo
 -- The <../src/demo demo folder> contains a client and server that communicate
--- using a shared set of 'Signature's.  The client runs the server, sending
--- requests to stdin and receiving responses from stdout.  Compile both
--- programs with the @demo@ flag.  Then run the client by passing it a command
--- to run the server (e.g., @demo-client demo-server@).
+-- using a shared set of 'Signature's.  The client runs the server as a
+-- subprocess, sending requests to stdin and receiving responses from stdout.
+-- Compile both programs with the @demo@ flag.  Then run the client by passing
+-- it a command to run the server (e.g., @demo-client demo-server@).
 
 -- | Function used to send requests to the server.
 --   'Nothing' represents no response, as when a JSON-RPC

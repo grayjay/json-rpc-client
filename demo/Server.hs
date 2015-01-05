@@ -13,6 +13,21 @@ import Control.Monad (forM_)
 import Control.Monad.Reader (ReaderT, ask, runReaderT, liftIO)
 import Control.Concurrent.MVar (MVar, newMVar, modifyMVar)
 
+-- This server uses an MVar to maintain a count
+-- that can be read and updated by RPC calls:
+type Server = ReaderT (MVar Int) IO
+
+-- Create a Method from each Signature:
+concatenate, increment :: Method Server
+
+concatenate = toServerMethod concatenateSig (\x y -> return $ x ++ y)
+
+increment = toServerMethod incrementSig $ ask >>= \count ->
+            liftIO $ modifyMVar count inc
+              where inc x = return (x + 1, x + 1)
+
+-- Call the set of methods with requests from stdin,
+-- and print responses to stdout:
 main = do
   contents <- B.getContents
   count <- newMVar 0
@@ -20,15 +35,4 @@ main = do
          response <- runReaderT (call methods request) count
          B.putStrLn $ fromMaybe "" response
          hFlush stdout
-
-type Server = ReaderT (MVar Int) IO
-
-methods :: Methods Server
-methods = toMethods [concatenate, increment]
-
-concatenate, increment :: Method Server
-concatenate = toServerMethod concatenateSig (\x y -> return $ x ++ y)
-
-increment = toServerMethod incrementSig $ ask >>= \count ->
-            liftIO $ modifyMVar count inc
-              where inc x = return (x + 1, x + 1)
+      where methods = toMethods [concatenate, increment]

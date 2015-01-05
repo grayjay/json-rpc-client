@@ -3,7 +3,7 @@ json-rpc-client
 [![Build Status](https://travis-ci.org/grayjay/json-rpc-client.svg?branch=master)](https://travis-ci.org/grayjay/json-rpc-client)
 
 
-An implementation of the client side of JSON-RPC 2.0.  See
+Functions for creating a JSON-RPC 2.0 client.  See
 http://www.jsonrpc.org/specification. This library supports
 batch requests and notifications, as well as single method
 calls.  It also provides a function for creating corresponding

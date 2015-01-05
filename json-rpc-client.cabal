@@ -10,7 +10,7 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 tested-with:         GHC == 7.0.4, GHC == 7.4.2, GHC == 7.6.3, GHC == 7.8.3
-description:         An implementation of the client side of JSON-RPC 2.0.  See
+description:         Functions for creating a JSON-RPC 2.0 client.  See
                      <http://www.jsonrpc.org/specification>. This library supports
                      batch requests and notifications, as well as single method
                      calls.  It also provides a function for creating corresponding
@@ -19,7 +19,8 @@ description:         An implementation of the client side of JSON-RPC 2.0.  See
                      This library does not handle transport, so a function for
                      communicating with the server must be provided.
                      The <src/demo demo folder> contains an example client and
-                     server that can be compiled with the demo flag.
+                     server that can be compiled with the demo flag.  See
+                     "Network.JsonRpc.Client" for details.
 
 source-repository head
   type:              git

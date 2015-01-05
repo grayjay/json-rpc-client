@@ -37,14 +37,16 @@ runRpcs = do
   printResult =<< concatenate "count=" . show =<< increment
       where printResult x = liftIO $ print x
 
+-- This client's RPC calls need access to the stdin
+-- and stdout handles of the server subprocess:
 type Result a = RpcResult (ReadInOut IO) a
 type ReadInOut = ReaderT (Handle, Handle)
 
 run :: Batch r -> Result r
 run = runBatch connection
 
--- Define some client-side RPC functions from Signatures.
--- The type signatures aren't necessary:
+-- Define some client-side RPC functions from
+-- the imported Signatures.
 concatenate :: String -> String -> Result String
 concatenate = toFunction connection concatenateSig
 
@@ -69,6 +71,7 @@ connection input = do
   line <- (head . B.lines) <$> liftIO (B.hGetContents outH)
   return $ if B.null line then Nothing else Just line
 
+-- Run the server as a subprocess:
 main = do
   cmd <- head <$> getArgs
   (inH, outH, _, processH) <- runInteractiveCommand cmd
