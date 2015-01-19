@@ -64,12 +64,13 @@ incrementB = toBatchFunction incrementSig
 
 -- Create a function for communicating with the server:
 connection :: Connection (ReadInOut IO)
-connection input = do
-  (inH, outH) <- ask
-  liftIO $ B.hPutStrLn inH input
-  liftIO $ hFlush inH
-  line <- (head . B.lines) <$> liftIO (B.hGetContents outH)
-  return $ if B.null line then Nothing else Just line
+connection input = ask >>= \(inH, outH) -> liftIO $
+                   do B.hPutStrLn inH input
+                      hFlush inH
+                      line <- (head . B.lines) <$> B.hGetContents outH
+                      return $ if B.null line
+                               then Nothing
+                               else Just line
 
 -- Run the server as a subprocess:
 main = do
