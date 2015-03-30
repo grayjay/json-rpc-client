@@ -16,13 +16,17 @@ import Data.Aeson ((.=))
 import qualified Data.ByteString.Lazy as B
 import Data.Text (unpack)
 import Data.List (isInfixOf)
-import Control.Applicative (pure, empty, (<$>), (<$), (<*>), (<|>))
 import Control.Monad.Error (runErrorT, throwError)
 import Control.Monad.State (State, runState, evalState, modify, when)
 import Test.HUnit hiding (State, Test)
 import Test.Framework (Test)
 import Test.Framework.Providers.HUnit (testCase)
 import Prelude hiding (subtract)
+import Control.Applicative (empty, (<|>))
+
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative (pure, (<$>), (<$), (<*>))
+#endif
 
 tests :: [Test]
 tests = [ testCase "single request" $ runServer (subtract 22 1) @?= (Right 21, 1)

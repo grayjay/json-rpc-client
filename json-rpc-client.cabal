@@ -1,5 +1,5 @@
 name:                json-rpc-client
-version:             0.1.0.0
+version:             0.1.1.0
 license:             MIT
 license-file:        LICENSE
 category:            Network, JSON
@@ -34,7 +34,7 @@ flag demo
 library
   exposed-modules:     Network.JsonRpc.Client
                        Network.JsonRpc.ServerAdapter
-  build-depends:       base >=4.3.1 && <4.8,
+  build-depends:       base >=4.3.1 && <4.9,
                        json-rpc-server >=0.1.4 && <0.2,
                        aeson >=0.7 && <0.9,
                        bytestring >=0.9.1.10 && <0.11,
@@ -51,7 +51,7 @@ executable demo-server
   main-is:             Server.hs
   other-modules:       Signatures
   if flag (demo)
-    build-depends:       base >=4.3.1 && <4.8,
+    build-depends:       base >=4.3.1 && <4.9,
                          json-rpc-client,
                          json-rpc-server >=0.1.4 && <0.2,
                          aeson >=0.7 && <0.9,
@@ -67,7 +67,7 @@ executable demo-client
   main-is:             Client.hs
   other-modules:       Signatures
   if flag (demo)
-    build-depends:       base >=4.3.1 && <4.8,
+    build-depends:       base >=4.3.1 && <4.9,
                          json-rpc-client,
                          json-rpc-server >=0.1.4 && <0.2,
                          process >=1.1.0.1 && <1.3,
@@ -84,7 +84,7 @@ test-suite tests
   main-is:             All.hs
   other-modules:       Tests, Properties
   type:                exitcode-stdio-1.0
-  build-depends:       base >=4.3.1 && <4.8,
+  build-depends:       base >=4.3.1 && <4.9,
                        json-rpc-client,
                        json-rpc-server >=0.1.4 && <0.2,
                        aeson >=0.7 && <0.9,
@@ -92,7 +92,7 @@ test-suite tests
                        mtl >=2.1.1 && <2.3,
                        text >=0.11.2 && <1.3,
                        HUnit >=1.2.4.2 && <1.3,
-                       QuickCheck >=2.4.2 && <2.8,
+                       QuickCheck >=2.4.2 && <2.9,
                        test-framework >=0.6 && <0.9,
                        test-framework-hunit >=0.3 && <0.4,
                        test-framework-quickcheck2 >=0.3 && <0.4

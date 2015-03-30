@@ -52,8 +52,12 @@ import qualified Data.HashMap.Lazy as H
 import Data.Function (on)
 import Data.Maybe (catMaybes)
 import Data.List (sortBy)
-import Control.Applicative (Applicative (..), Alternative (..), (<$>), (<*>), (<|>))
 import Control.Monad.Error (ErrorT (..), throwError, lift, (<=<))
+import Control.Applicative (Alternative (..), (<|>))
+
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative (Applicative (..), (<$>), (<*>))
+#endif
 
 -- $summary
 -- * Create one 'Signature' for each server-side method to be called.

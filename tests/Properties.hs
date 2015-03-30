@@ -21,8 +21,6 @@ import Control.Monad.Error (ErrorT (..), runErrorT, throwError)
 import Control.Monad.State (State, runState, evalState, gets, put, modify)
 import Data.Text (Text, pack)
 import Data.List (nub)
-import Data.Traversable (traverse)
-import Control.Applicative (pure, (<$>), (<*>))
 import Test.QuickCheck( Arbitrary (..), CoArbitrary (..), Blind (..)
                       , Property, Gen, listOf, oneof, (==>))
 import Test.Framework (Test)
@@ -32,6 +30,11 @@ import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck.Gen.Unsafe (promote)
 #else
 import Test.QuickCheck.Gen (promote)
+#endif
+
+#if !MIN_VERSION_base(4,8,0)
+import Data.Traversable (traverse)
+import Control.Applicative (pure, (<$>), (<*>))
 #endif
 
 properties :: [Test]
