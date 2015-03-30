@@ -99,7 +99,7 @@ infixr :::
 toBatchFunction :: ClientFunction ps r f =>
                    Signature ps r -- ^ Method signature.
                 -> f              -- ^ Client-side function with a return type of @'Batch' r@.
-toBatchFunction s@(Signature name params) = toBatch name params (resultType s) H.empty
+toBatchFunction s@(Signature name params) = _toBatch name params (resultType s) H.empty
 
 -- | Creates a function for calling a JSON-RPC method as a notification and as part of a batch request.
 toBatchFunction_ :: (ClientFunction ps r f, ComposeMultiParam (Batch r -> Batch ()) f g) =>
@@ -122,7 +122,7 @@ toFunction_ :: (Monad m, Functor m, ClientFunction ps r f, ComposeMultiParam (Ba
 toFunction_ server = composeWithBatch $ runBatch server . voidBatch
 
 composeWithBatch :: (ClientFunction ps r g, ComposeMultiParam f g h) => f -> Signature ps r -> h
-composeWithBatch f = compose f . toBatchFunction
+composeWithBatch f = _compose f . toBatchFunction
 
 -- | Evaluates a batch.  The process depends on its size:
 --   
@@ -207,10 +207,10 @@ clientCode = -31999
 -- | Relationship between the parameters ('ps'), return type ('r'),
 --   and client-side batch function ('f') of a JSON-RPC method.
 class ClientFunction ps r f | ps r -> f, f -> ps r where
-    toBatch :: Text -> ps -> ResultType r -> A.Object -> f
+    _toBatch :: Text -> ps -> ResultType r -> A.Object -> f
 
 instance A.FromJSON r => ClientFunction () r (Batch r) where
-    toBatch name _ _ priorArgs = Batch { bNonNotifications = 1
+    _toBatch name _ _ priorArgs = Batch { bNonNotifications = 1
                                        , bRequests = [Request name False priorArgs]
                                        , bToResult = decode <=< head }
         where decode result = case A.fromJSON result of
@@ -219,20 +219,20 @@ instance A.FromJSON r => ClientFunction () r (Batch r) where
                                                "Client received wrong result type: " ++ msg
 
 instance (ClientFunction ps r f, A.ToJSON a) => ClientFunction (a ::: ps) r (a -> f) where
-    toBatch name (p ::: ps) rt priorArgs a = let newArgs = H.insert p (A.toJSON a) priorArgs
-                                             in toBatch name ps rt newArgs
+    _toBatch name (p ::: ps) rt priorArgs a = let newArgs = H.insert p (A.toJSON a) priorArgs
+                                              in _toBatch name ps rt newArgs
 
 -- | Relationship between a function ('g') taking any number of arguments and yielding a @'Batch' a@,
 --   a function ('f') taking a @'Batch' a@, and the function ('h') that applies g to all of its
 --   arguments and then applies f to the result.
 class ComposeMultiParam f g h | f g -> h, g h -> f where
-    compose :: f -> g -> h
+    _compose :: f -> g -> h
 
 instance ComposeMultiParam (Batch a -> b) (Batch a) b where
-    compose = ($)
+    _compose = ($)
 
 instance ComposeMultiParam f g h => ComposeMultiParam f (a -> g) (a -> h) where
-    compose f g = compose f . g
+    _compose f g = _compose f . g
 
 data Request = Request { rqMethod :: Text
                        , rqIsNotification :: Bool
