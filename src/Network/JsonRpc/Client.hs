@@ -24,21 +24,27 @@ module Network.JsonRpc.Client ( -- * Summary
                                 -- * Types
                                   Connection
                                 , RpcResult
+
                                 -- * Signatures
                                 , Signature (..)
                                 , (:::) (..)
+
                                 -- * Single Requests
                                 , toFunction
                                 , toFunction_
+
                                 -- * Batch Requests
                                 , Batch ()
                                 , toBatchFunction
                                 , toBatchFunction_
                                 , voidBatch
                                 , runBatch
+
                                 -- * Errors
+                                -- $errors
                                 , RpcError (..)
                                 , clientCode
+
                                 -- * Type Classes
                                 , ClientFunction
                                 , ComposeMultiParam) where
@@ -48,10 +54,12 @@ import qualified Data.Aeson as A
 import Data.Aeson ((.=), (.:))
 import Data.Text (Text (), pack)
 import Data.ByteString.Lazy (ByteString)
-import qualified Data.HashMap.Lazy as H
-import Data.Function (on)
+import qualified Data.HashMap.Strict as H
+import Data.Ord (comparing)
 import Data.Maybe (catMaybes)
-import Data.List (sortBy)
+import qualified Data.Vector as V
+import qualified Data.Vector.Algorithms.Intro as VA
+import Control.Arrow ((&&&))
 import Control.Monad.Error (ErrorT (..), throwError, lift, (<=<))
 import Control.Applicative (Alternative (..), (<|>))
 
@@ -78,6 +86,11 @@ import Control.Applicative (Applicative (..), (<$>), (<*>))
 -- subprocess, sending requests to stdin and receiving responses from stdout.
 -- Compile both programs with the @demo@ flag.  Then run the client by passing
 -- it a command to run the server (e.g., @demo-client demo-server@).
+
+-- $errors
+-- 'RpcError' is used for all server-side errors, as described in the
+-- specification.  Additionally, the error code @-31999@ is used for any
+-- errors that occur while parsing the server's response.
 
 -- | Function used to send requests to the server.
 --   'Nothing' represents no response, as when a JSON-RPC
@@ -135,33 +148,42 @@ runBatch :: (Monad m, Functor m) =>
             Connection m  -- ^ Function for sending requests to the server.
          -> Batch r       -- ^ Batch to be evaluated.
          -> RpcResult m r -- ^ Result.
-runBatch server batch = let requests = zipWith assignId (bRequests batch) [1..]
-                            sort = sortBy (compare `on` rsId)
-                            liftResult = ErrorT . return
-                        in processRqs server requests >>=
-                           liftResult . bToResult batch . map rsResult . sort
+runBatch server batch = liftResult . bToResult batch =<<
+                        validate . sort =<<
+                        processRqs server idRequests
+    where requests = bRequests batch
+          idRequests = V.zipWith assignId requests ids
+              where ids = V.postscanl' incId 0 requests
+                    incId i rq = if rqIsNotification rq then i else i + 1
+          sort = V.modify $ VA.sortBy $ comparing rsId
+          liftResult = ErrorT . return
+          validate rsps = let (results, ids) = V.unzip $ V.map (rsResult &&& rsId) rsps
+                          in if ids /= V.enumFromN 1 (bNonNotifications batch)
+                             then throwError $ clientError $
+                                      "Invalid response IDs: " ++ show ids
+                             else return results
 
 assignId :: Request -> Int -> IdRequest
 assignId rq i = IdRequest { idRqMethod = rqMethod rq
                           , idRqId = if rqIsNotification rq then Nothing else Just i
                           , idRqParams = rqParams rq }
 
-processRqs :: (Monad m, Functor m) => Connection m -> [IdRequest] -> RpcResult m [Response]
-processRqs server requests = case requests of
-                               [] -> return []
-                               [rq] -> process (:[]) rq
-                               rqs -> process id rqs
+processRqs :: (Monad m, Functor m) =>
+              Connection m -> V.Vector IdRequest -> RpcResult m (V.Vector Response)
+processRqs server requests | V.null requests = return V.empty
+                           | V.length requests == 1 = process V.singleton $ V.head requests
+                           | otherwise = process id requests
     where decode rsp = case A.eitherDecode rsp of
                          Right r -> return r
                          Left msg -> throwError $ clientError $
                                      "Client cannot parse JSON response: " ++ msg
-          process f rqs = maybe (return []) (fmap f . decode) =<<
+          process f rqs = maybe (return V.empty) (fmap f . decode) =<<
                           (lift . server . A.encode) rqs
 
 -- | Converts all requests in a batch to notifications.
 voidBatch :: Batch r -> Batch ()
 voidBatch batch = Batch { bNonNotifications = 0
-                        , bRequests = map toNotification $ bRequests batch
+                        , bRequests = V.map toNotification $ bRequests batch
                         , bToResult = const $ return () }
     where toNotification rq = rq { rqIsNotification = True }
 
@@ -169,27 +191,27 @@ voidBatch batch = Batch { bNonNotifications = 0
 --   values of this type using its 'Applicative' and 'Alternative'
 --   instances before running them with 'runBatch'.
 data Batch r = Batch { bNonNotifications :: Int
-                     , bRequests :: [Request]
-                     , bToResult :: [Result A.Value] -> Result r }
+                     , bRequests :: V.Vector Request
+                     , bToResult :: V.Vector (Result A.Value) -> Result r }
 
 instance Functor Batch where
     fmap f batch = batch { bToResult = fmap f . bToResult batch }
 
 instance Applicative Batch where
-    pure x = empty { bToResult = const (return x) }
+    pure x = empty { bToResult = const $ return x }
     (<*>) = combine (<*>)
 
 instance Alternative Batch where
     empty = Batch { bNonNotifications = 0
-                  , bRequests = []
+                  , bRequests = V.empty
                   , bToResult = const $ throwError $ clientError "empty" }
     (<|>) = combine (<|>)
 
 combine :: (Result a -> Result b -> Result c) -> Batch a -> Batch b -> Batch c
 combine f (Batch n1 rqs1 g1) (Batch n2 rqs2 g2) =
     Batch { bNonNotifications = n1 + n2
-          , bRequests = rqs1 ++ rqs2
-          , bToResult = \rs -> let (rs1, rs2) = splitAt n1 rs
+          , bRequests = rqs1 V.++ rqs2
+          , bToResult = \rs -> let (rs1, rs2) = V.splitAt n1 rs
                                in g1 rs1 `f` g2 rs2 }
 
 data ResultType r = ResultType
@@ -211,11 +233,12 @@ class ClientFunction ps r f | ps r -> f, f -> ps r where
 
 instance A.FromJSON r => ClientFunction () r (Batch r) where
     _toBatch name _ _ priorArgs = Batch { bNonNotifications = 1
-                                       , bRequests = [Request name False priorArgs]
-                                       , bToResult = decode <=< head }
+                                       , bRequests = V.singleton $
+                                                     Request name False priorArgs
+                                       , bToResult = decode <=< V.head }
         where decode result = case A.fromJSON result of
                                 A.Success r -> Right r
-                                A.Error msg -> Left $ clientError $
+                                A.Error msg -> throwError . clientError $
                                                "Client received wrong result type: " ++ msg
 
 instance (ClientFunction ps r f, A.ToJSON a) => ClientFunction (a ::: ps) r (a -> f) where
