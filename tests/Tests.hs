@@ -17,7 +17,7 @@ import Data.Aeson ((.=))
 import qualified Data.ByteString.Lazy as B
 import Data.Maybe (fromJust)
 import Data.Ratio ((%))
-import Data.Scientific
+import Data.Scientific (Scientific)
 import qualified Data.HashMap.Strict as M
 import qualified Data.Vector as V
 import Control.Monad.Error (runErrorT, throwError)
