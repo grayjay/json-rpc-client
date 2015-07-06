@@ -7,10 +7,6 @@
              TypeOperators,
              FlexibleContexts #-}
 
-#if MIN_VERSION_mtl(2,2,1)
-{-# OPTIONS_GHC -fno-warn-deprecations #-}
-#endif
-
 -- | Functions for implementing the client side of JSON-RPC 2.0.
 --   See <http://www.jsonrpc.org/specification>.
 
@@ -60,7 +56,7 @@ import Data.Maybe (catMaybes)
 import qualified Data.Vector as V
 import qualified Data.Vector.Algorithms.Intro as VA
 import Control.Arrow ((&&&))
-import Control.Monad.Error (ErrorT (..), throwError, lift, (<=<))
+import Control.Monad.Except (ExceptT (..), throwError, lift, (<=<))
 import Control.Applicative (Alternative (..), (<|>))
 
 #if !MIN_VERSION_base(4,8,0)
@@ -156,7 +152,7 @@ runBatch server batch = liftResult . bToResult batch =<<
               where ids = V.postscanl' incId 0 requests
                     incId i rq = if rqIsNotification rq then i else i + 1
           sort = V.modify $ VA.sortBy $ comparing rsId
-          liftResult = ErrorT . return
+          liftResult = ExceptT . return
           validate rsps = let (results, ids) = V.unzip $ V.map (rsResult &&& rsId) rsps
                           in if ids /= V.enumFromN 1 (bNonNotifications batch)
                              then throwError $ clientError $
@@ -205,7 +201,9 @@ instance Alternative Batch where
     empty = Batch { bNonNotifications = 0
                   , bRequests = V.empty
                   , bToResult = const $ throwError $ clientError "empty" }
-    (<|>) = combine (<|>)
+    (<|>) = combine (<||>)
+        where Right x <||> _ = Right x
+              _ <||> x = x
 
 combine :: (Result a -> Result b -> Result c) -> Batch a -> Batch b -> Batch c
 combine f (Batch n1 rqs1 g1) (Batch n2 rqs2 g2) =

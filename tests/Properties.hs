@@ -7,17 +7,13 @@
              FlexibleContexts,
              FlexibleInstances #-}
 
-#if MIN_VERSION_mtl(2,2,1)
-{-# OPTIONS_GHC -fno-warn-deprecations #-}
-#endif
-
 module Properties (properties) where
 
 import Network.JsonRpc.Client
 import Network.JsonRpc.ServerAdapter
 import Network.JsonRpc.Server
 import Data.Aeson (ToJSON, FromJSON)
-import Control.Monad.Error (ErrorT (..), runErrorT, throwError)
+import Control.Monad.Except (runExceptT, throwError)
 import Control.Monad.State (State, runState, evalState, gets, put, modify)
 import Data.Text (Text, pack)
 import Data.List (nub)
@@ -60,9 +56,9 @@ prop_rpcVsDirect :: Signature (A ::: B ::: ()) C
                  -> A -> B -> D -> Property
 prop_rpcVsDirect sig@(Signature _ ps) (Blind f) x y state = unique (paramNames ps) ==>
                                                             run (f x y) == run (rpcFunction x y)
-    where server = call $ toMethods [toServerMethod sig f]
+    where server = call [toServerMethod sig f]
           rpcFunction = toFunction server sig
-          run result = runState (runErrorT result) state
+          run result = runState (runExceptT result) state
 
 -- A sequence of requests should yield the same result whether batched or
 -- sent individually in the State monad, if the server evaluates the
@@ -72,10 +68,10 @@ prop_rpcVsDirect sig@(Signature _ ps) (Blind f) x y state = unique (paramNames p
 prop_singleVsBatch :: Signature (A ::: B ::: ()) C
                    -> Blind (A -> B -> RpcResult (State D) C)
                    -> [(A, B)] -> D -> Bool
-prop_singleVsBatch sig (Blind f) args state = let server = call $ toMethods [toServerMethod sig f]
+prop_singleVsBatch sig (Blind f) args state = let server = call [toServerMethod sig f]
                                                   function = toFunction server sig
                                                   functionB = toBatchFunction sig
-                                                  run result = evalState (runErrorT result) state
+                                                  run result = evalState (runExceptT result) state
                                               in run (mapM (uncurry function) args) ==
                                                  run (runBatch server $ traverse (uncurry functionB) args)
 
@@ -167,7 +163,7 @@ prop_noUnexpectedErrors sigs toServer toBatch state = unique (methodNames sigs) 
 unique xs = nub xs == xs
 
 myRunBatch toServer sigs state result = let server = getServer toServer sigs
-                                        in runState (runErrorT $ runBatch server result) state
+                                        in runState (runExceptT $ runBatch server result) state
 
 data a :*: b = a :*: b deriving Show
 infixr :*:
@@ -217,7 +213,7 @@ instance Show (ToServer ss s) where
     show _ = "ToServer"
 
 instance SignatureSet ss => Arbitrary (ToServer ss S) where
-    arbitrary = ToServer <$> promote (\ss -> (call . toMethods) <$> toServerMethods ss)
+    arbitrary = ToServer <$> promote (\ss -> call <$> toServerMethods ss)
 
 testError = rpcError 9999 "Test error"
 

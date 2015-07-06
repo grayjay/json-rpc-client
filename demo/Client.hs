@@ -10,7 +10,7 @@ import System.Environment (getArgs)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Data.Traversable (sequenceA)
 import Control.Applicative ((<$>), (<*>))
-import Control.Monad.Error (runErrorT, liftIO)
+import Control.Monad.Except (runExceptT, liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
 
 runRpcs :: Result ()
@@ -76,5 +76,5 @@ connection input = ask >>= \(inH, outH) -> liftIO $
 main = do
   cmd <- head <$> getArgs
   (inH, outH, _, processH) <- runInteractiveCommand cmd
-  runReaderT (runErrorT runRpcs) (inH, outH)
+  runReaderT (runExceptT runRpcs) (inH, outH)
   terminateProcess processH

@@ -35,4 +35,4 @@ main = do
   forM_ (B.lines contents) $ \request -> do
          response <- runReaderT (call methods request) count
          B.putStrLn $ fromMaybe "" response
-      where methods = toMethods [concatenate, increment]
+      where methods = [concatenate, increment]

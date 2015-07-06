@@ -2,15 +2,11 @@
              OverloadedStrings,
              TypeOperators #-}
 
-#if MIN_VERSION_mtl(2,2,1)
-{-# OPTIONS_GHC -fno-warn-deprecations #-}
-#endif
-
 module Tests (tests) where
 
 import Network.JsonRpc.Client
 import Network.JsonRpc.ServerAdapter (toServerMethod)
-import Network.JsonRpc.Server (toMethods, rpcError, call, callWithBatchStrategy)
+import Network.JsonRpc.Server (rpcError, call, callWithBatchStrategy)
 
 import qualified Data.Aeson as A
 import Data.Aeson ((.=))
@@ -20,7 +16,7 @@ import Data.Ratio ((%))
 import Data.Scientific (Scientific)
 import qualified Data.HashMap.Strict as M
 import qualified Data.Vector as V
-import Control.Monad.Error (runErrorT, throwError)
+import Control.Monad.Except (runExceptT, throwError)
 import Control.Monad.State (State, runState, modify, when)
 import Test.HUnit hiding (State, Test)
 import Test.Framework (Test)
@@ -184,7 +180,7 @@ missingMethodB = toBatchFunction missingMethodSig
 
 -- | Returns the error code or result, and the new server state.
 runResult :: Result a -> (Either Int a, Int)
-runResult result = runState (mapLeft errCode <$> runErrorT result) 0
+runResult result = runState (mapLeft errCode <$> runExceptT result) 0
     where mapLeft f (Left x) = Left $ f x
           mapLeft _ (Right x) = Right x
 
@@ -213,7 +209,7 @@ responseModifyingServer f rq = modifyResponse <$> myServer rq
 constServer :: B.ByteString -> Connection RequestCount
 constServer = const . return . Just
 
-methods = toMethods [subtractMethod, divideMethod]
+methods = [subtractMethod, divideMethod]
 
 subtractMethod = toServerMethod subtractSig f
     where f :: Int -> Int -> RpcResult RequestCount Int
