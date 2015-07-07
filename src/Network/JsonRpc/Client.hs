@@ -56,6 +56,7 @@ import Data.Maybe (catMaybes)
 import qualified Data.Vector as V
 import qualified Data.Vector.Algorithms.Intro as VA
 import Control.Arrow ((&&&))
+import Control.Monad (liftM)
 import Control.Monad.Except (ExceptT (..), throwError, lift, (<=<))
 import Control.Applicative (Alternative (..), (<|>))
 
@@ -117,14 +118,14 @@ toBatchFunction_ :: (ClientFunction ps r f, ComposeMultiParam (Batch r -> Batch 
 toBatchFunction_ = composeWithBatch voidBatch
 
 -- | Creates a function for calling a JSON-RPC method on the server.
-toFunction :: (Monad m, Functor m, ClientFunction ps r f, ComposeMultiParam (Batch r -> RpcResult m r) f g) =>
+toFunction :: (Monad m, ClientFunction ps r f, ComposeMultiParam (Batch r -> RpcResult m r) f g) =>
               Connection m   -- ^ Function for sending requests to the server.
            -> Signature ps r -- ^ Method signature.
            -> g              -- ^ Client-side function with a return type of @'RpcResult' m r@.
 toFunction = composeWithBatch . runBatch
 
 -- | Creates a function for calling a JSON-RPC method on the server as a notification.
-toFunction_ :: (Monad m, Functor m, ClientFunction ps r f, ComposeMultiParam (Batch r -> RpcResult m ()) f g) =>
+toFunction_ :: (Monad m, ClientFunction ps r f, ComposeMultiParam (Batch r -> RpcResult m ()) f g) =>
                Connection m   -- ^ Function for sending requests to the server.
             -> Signature ps r -- ^ Method signature.
             -> g              -- ^ Client-side function with a return type of @'RpcResult' m ()@.
@@ -140,7 +141,7 @@ composeWithBatch f = _compose f . toBatchFunction
 -- 2. If the batch has exactly one request, it is sent as a request object.
 --   
 -- 3. If the batch has multiple requests, they are sent as an array of request objects.
-runBatch :: (Monad m, Functor m) =>
+runBatch :: Monad m =>
             Connection m  -- ^ Function for sending requests to the server.
          -> Batch r       -- ^ Batch to be evaluated.
          -> RpcResult m r -- ^ Result.
@@ -164,7 +165,7 @@ assignId rq i = IdRequest { idRqMethod = rqMethod rq
                           , idRqId = if rqIsNotification rq then Nothing else Just i
                           , idRqParams = rqParams rq }
 
-processRqs :: (Monad m, Functor m) =>
+processRqs :: Monad m =>
               Connection m -> V.Vector IdRequest -> RpcResult m (V.Vector Response)
 processRqs server requests | V.null requests = return V.empty
                            | V.length requests == 1 = process V.singleton $ V.head requests
@@ -173,7 +174,7 @@ processRqs server requests | V.null requests = return V.empty
                          Right r -> return r
                          Left msg -> throwError $ clientError $
                                      "Client cannot parse JSON response: " ++ msg
-          process f rqs = maybe (return V.empty) (fmap f . decode) =<<
+          process f rqs = maybe (return V.empty) (liftM f . decode) =<<
                           (lift . server . A.encode) rqs
 
 -- | Converts all requests in a batch to notifications.
