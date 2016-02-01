@@ -184,7 +184,7 @@ runResult result = runState (mapLeft errCode <$> runExceptT result) 0
     where mapLeft f (Left x) = Left $ f x
           mapLeft _ (Right x) = Right x
 
-myRunBatch :: A.FromJSON a => Batch a -> (Either Int a, Int)
+myRunBatch :: Batch a -> (Either Int a, Int)
 myRunBatch = runResult . runBatch myServer
 
 myServer :: B.ByteString -> RequestCount (Maybe B.ByteString)

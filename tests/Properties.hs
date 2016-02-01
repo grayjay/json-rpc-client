@@ -175,7 +175,7 @@ class SignatureSet ss where
     toServerMethods :: ss -> Gen [Method (State S)]
 
 instance (TestClientFunction ps r f1, Params ps,
-          MethodParams f2 ps2 (State S) r, ConvertParams ps ps2, Arbitrary f2, Arbitrary r, CoArbitrary r)
+          MethodParams f2 ps2 (State S) r, ConvertParams ps ps2, Arbitrary f2, CoArbitrary r)
          => SignatureSet (Signature ps r) where
     methodNames (Signature name _) = [name]
     allParamNames (Signature _ ps) = [paramNames ps]
@@ -183,7 +183,7 @@ instance (TestClientFunction ps r f1, Params ps,
     toServerMethods sig = (\f -> [toServerMethod sig f]) <$> arbitrary
 
 instance (SignatureSet ss, TestClientFunction ps r f1, Params ps,
-          MethodParams f2 ps2 (State S) r, ConvertParams ps ps2, Arbitrary f2, Arbitrary r, CoArbitrary r)
+          MethodParams f2 ps2 (State S) r, ConvertParams ps ps2, Arbitrary f2, CoArbitrary r)
          => SignatureSet (Signature ps r :*: ss) where
     methodNames (Signature name _ :*: sigs) = name : methodNames sigs
     allParamNames (Signature _ ps :*: sigs) = paramNames ps : allParamNames sigs
