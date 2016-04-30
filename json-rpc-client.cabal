@@ -1,5 +1,5 @@
 name:                json-rpc-client
-version:             0.2.3.0
+version:             0.2.4.0
 license:             MIT
 license-file:        LICENSE
 category:            Network, JSON
@@ -37,7 +37,7 @@ flag demo
 library
   exposed-modules:     Network.JsonRpc.Client
                        Network.JsonRpc.ServerAdapter
-  build-depends:       base >=4.3.1 && <4.9,
+  build-depends:       base >=4.3.1 && <4.10,
                        json-rpc-server >=0.2 && <0.3,
                        aeson >=0.7 && <0.12,
                        bytestring >=0.9.1 && <0.11,
