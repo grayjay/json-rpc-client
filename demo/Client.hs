@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeOperators #-}
-
 module Main (main) where
 
 import Signatures (concatenateSig, incrementSig)
