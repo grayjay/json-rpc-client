@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP,
-             OverloadedStrings,
-             TypeOperators #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Tests (tests) where
 

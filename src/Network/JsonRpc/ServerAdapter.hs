@@ -1,7 +1,7 @@
-{-# LANGUAGE MultiParamTypeClasses,
-             FunctionalDependencies,
-             UndecidableInstances,
-             TypeOperators #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- | Convenience function for creating server-side methods from
 --   'Signature's with the package

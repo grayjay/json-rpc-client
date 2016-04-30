@@ -1,11 +1,11 @@
-{-# LANGUAGE CPP,
-             OverloadedStrings,
-             TypeOperators,
-             MultiParamTypeClasses,
-             TypeSynonymInstances,
-             UndecidableInstances,
-             FlexibleContexts,
-             FlexibleInstances #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Properties (properties) where
 

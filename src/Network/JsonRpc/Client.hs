@@ -1,11 +1,11 @@
-{-# LANGUAGE CPP,
-             OverloadedStrings,
-             MultiParamTypeClasses,
-             FunctionalDependencies,
-             FlexibleInstances,
-             UndecidableInstances,
-             TypeOperators,
-             FlexibleContexts #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 -- | Functions for implementing the client side of JSON-RPC 2.0.
 --   See <http://www.jsonrpc.org/specification>.
